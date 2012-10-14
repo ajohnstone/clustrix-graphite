@@ -3,6 +3,5 @@ COPYING
 INSTALL
 Makefile.PL
 MANIFEST
-README
-bin/*
+README.md
 docs/clustrix-graphite.pod
