@@ -4,4 +4,5 @@ INSTALL
 Makefile.PL
 MANIFEST
 README.md
+bin/clustrix-graphite
 docs/clustrix-graphite.pod

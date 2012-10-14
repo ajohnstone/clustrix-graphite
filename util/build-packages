@@ -159,6 +159,8 @@ tmpdir="/tmp/build-${TOOL_NAME}-${VERSION}"
 rm -rf $tmpdir >/dev/null 2>&1
 mkdir $tmpdir
 
+update_manifest;
+
 BUILD=${BUILD:-1}
 if [ $BUILD -eq 1 ]; then
 
