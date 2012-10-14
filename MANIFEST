@@ -1,0 +1,8 @@
+Changelog
+COPYING
+INSTALL
+Makefile.PL
+MANIFEST
+README
+bin/*
+docs/clustrix-graphite.pod

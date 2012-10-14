@@ -1,0 +1,15 @@
+Source: clustrix-graphite
+Section: utils
+Priority: optional
+Maintainer: Andrew Johnstone <andrew@ajohnstone.com>
+Build-Depends: debhelper (>= 4.2)
+Build-Depends-Indep: perl (>= 5.6.0-16)
+Standards-Version: 3.7.2
+Homepage: https://github.com/ajohnstone/clustrix-graphite
+Vcs-Browser: https://github.com/ajohnstone/clustrix-graphite
+Vcs-Git: git@github.com:ajohnstone/clustrix-graphite.git
+
+Package: clustrix-graphite
+Architecture: all
+Depends: ${perl:Depends}, libdbi-perl (>= 1.13), libdbd-mysql-perl | libdbd-mysql-5.1-perl
+Description: Clutrix monitoring - Monitor standalone or from within collectd

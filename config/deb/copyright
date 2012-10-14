@@ -1,0 +1,30 @@
+Upstream Author:
+
+    Andrew Johnstone <andrew@ajohnstone.com>
+
+Copyright:
+
+   Copyright 2012 Andrew Johnstone <andrew@ajohnstone.com>.
+
+License:
+
+    This software is dual licensed, either GPL version 2 or Artistic License.
+
+    This package is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, version 2; OR the Perl Artistic License.
+
+    This package is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this package; if not, write to the Free Software
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+On Debian systems, the complete text of the GNU General Public License version
+2 can be found in `/usr/share/common-licenses/GPL-2'.
+
+On Debian systems, the complete text of the Artistic License can  be found in
+`/usr/share/common-licenses/Artistic'.
