@@ -120,16 +120,36 @@ sub run {
     ";
     my $dbh = $self->get_dbh();
     my $sth = $dbh->prepare( $sql );
-
+    $sth->execute;
     while (my $ref = $sth->fetchrow_hashref() ) {
         print "$$ref{'name'} \t$$ref{'value'}\n";
         Net::Statsd::gauge("$$ref{'name'}", $$ref{'value'});
     }
 
-    # SELECT count(*) FROM system.sessions;
-    # SELECT count(*) FROM system.sessions WHERE trx_state = 'open' AND statement_state = 'executing';
-    # SELECT seconds_behind_master FROM system.mysql_slave_status WHERE Slave_Name = 'default'
+    $sql = " SELECT 'clustrix.sessions' AS name, COUNT(*) AS value FROM system.sessions";
+    $sth = $dbh->prepare( $sql );
+    $sth->execute;
+    while (my $ref = $sth->fetchrow_hashref() ) {
+        print "$$ref{'name'} \t$$ref{'value'}\n";
+        Net::Statsd::gauge("$$ref{'name'}", $$ref{'value'});
+    }
 
+    $sql = " SELECT 'clustrix.running.queries' AS name, count(*) AS value FROM system.sessions WHERE trx_state = 'open' AND statement_state = 'executing' ";
+    $sth = $dbh->prepare( $sql );
+    $sth->execute;
+    while (my $ref = $sth->fetchrow_hashref() ) {
+        print "$$ref{'name'} \t$$ref{'value'}\n";
+        Net::Statsd::gauge("$$ref{'name'}", $$ref{'value'});
+    }
+
+    $sql = " SELECT 'clustrix.slave.seconds_behind_master' AS name, seconds_behind_master AS value FROM system.mysql_slave_status WHERE Slave_Name = 'default' ";
+    $sth = $dbh->prepare( $sql );
+    $sth->execute;
+    while (my $ref = $sth->fetchrow_hashref() ) {
+        print "$$ref{'name'} \t$$ref{'value'}\n";
+        Net::Statsd::gauge("$$ref{'name'}", $$ref{'value'});
+    }
+    $dbh->disconnect();
 }
 
 1;
