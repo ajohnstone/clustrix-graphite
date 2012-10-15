@@ -47,6 +47,10 @@ sub _statsd_init {
 
     $Net::Statsd::HOST = $self->{config}{statsd_hostname};
     $Net::Statsd::PORT = $self->{config}{statsd_port};
+
+    if (DEBUG) {
+        print "$Net::Statsd::HOST:$Net::Statsd::PORT\n";
+    }
 }
 
 sub _config_init {
@@ -91,16 +95,17 @@ sub get_dbh {
     }
     my $dbh;
     $dbh = eval { DBI->connect($self->{config}{dsn}, $self->{config}{user}, $self->{config}{pass}, $defaults) };
-if ( $EVAL_ERROR ) {
-print "Error:  $EVAL_ERROR ";
-}
+
+    if ( $EVAL_ERROR ) {
+        print "Error:  $EVAL_ERROR ";
+    }
     return $dbh;
 }
 
 sub run {
     my($self) = @_;
 
-    my %stats = (
+    my %statsd_current = (
         "cpu" => "clustrix.cpu.load_avg",
         "bm_miss_rate" => "clustrix.stats.bm_miss_rate",
         "qps_total" => "clustrix.qps",
@@ -113,33 +118,98 @@ sub run {
         "disk_write" => "clustrix.io.disks.bytes_written_per_sec",
         "rebalancer_running" => "clustrix.rebalancer.jobs_queued"
     );
+   
+    my %queries = (
+        system_statsd_current   => " SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name IN ( @{[ join(',', map({ '\'' . $statsd_current{$_} . '\'' } keys %statsd_current) ) ]} )",
+        system_sessions         => " SELECT 'clustrix.system.sessions' AS name, COUNT(*) AS value FROM system.sessions",
+        system_sessions_running => " SELECT 'clustrix.system.running.queries' AS name, count(*) AS value FROM system.sessions WHERE trx_state = 'open' AND statement_state = 'executing' ",
+        system_slave_seconds_behind_master => " SELECT 'clustrix.slave.seconds_behind_master' AS name, seconds_behind_master AS value FROM system.mysql_slave_status WHERE Slave_Name = 'default' ",
 
-    my $sql = "SELECT value, name FROM clustrix_statd.statd_current
-            NATURAL JOIN clustrix_statd.statd_metadata
-            WHERE name IN ( @{[ join(',', map({ '\'' . $_ . '\'' } %stats) ) ]} )
-    ";
+        # This divides the number of connected sessions (including idle) by the maximum number of connections that the cluster will allow,
+        system_available_connections => "SELECT 'clustrix.system.available_connections' AS name, (SELECT COUNT(*) FROM system.sessions) - (SELECT \@\@global.max_connections * (SELECT COUNT(*) FROM system.membership WHERE status = 'quorum')) AS value ",
+
+        # the avg age, and the age of the oldest active query.
+        system_sessions_age => " SELECT
+                                     'clustrix.session.avg_age' AS name,
+                                     CAST(AVG(time_in_state) AS DECIMAL(10,3)) AS value
+                                 FROM system.sessions
+                                 WHERE
+                                     trx_state = 'open' AND
+                                     statement_state = 'executing' AND
+                                     LOWER(last_statement) NOT LIKE 'alter replica %'
+                                 UNION ALL
+                                 SELECT
+                                     'clustrix.session.max_age' AS name,
+                                     MAX(time_in_state) FROM system.sessions
+                                 WHERE
+                                     trx_state = 'open' AND
+                                     statement_state = 'executing' AND
+                                     LOWER(last_statement) NOT LIKE 'alter replica %'
+        ",
+        system_sessions_idle => " SELECT 'clustrix.system.sessions.idle' AS name, COUNT(*) AS value FROM system.sessions WHERE trx_state = 'open' AND statement_state != 'executing' ",
+
+        # BigC is a Garbage Collector which cannot move past the oldest trx, returns bigc_delay
+        system_stats => " SELECT 'clustrix.stats.bigc_delay' AS name, CAST(UNIX_TIMESTAMP() - (SELECT MIN(value) FROM system.stats WHERE name = 'bigc_value')/POW(2,32) AS signed) AS value; ",
+
+        # if any data does not have 2 copies, XXX improve
+        system_replicas_total => " SELECT 'clustrix.system.replicas.min' AS name, MIN(total) AS value FROM (SELECT COUNT(*) AS total FROM system.replicas WHERE status = 1 GROUP BY slice, status) tmp; ",
+
+        #SELECT
+        #  CAST(AVG(((page_alloc/huge_alloc)*100)) AS DECIMAL(4,1)) AS avg_mem_used_perc,
+        #  MAX(CAST(((page_alloc/huge_alloc)*100) AS DECIMAL(4,1))) AS max_mem_used_perc
+        #FROM (SELECT nodeid, bytes_in_use AS page_alloc
+        #      FROM system.page_allocators WHERE name = 'page_alloc') AS page_alloc
+        #JOIN (SELECT nodeid, bytes_reserved AS huge_alloc
+        #      FROM system.page_allocators WHERE name = 'huge_alloc') AS huge_alloc
+        #USING (nodeid);
+
+        #SELECT
+        #    ROUND(( perm_used_bytes / total_bytes) * 100) AS max_perm_used_perc,
+        #    ROUND(((temp_used_bytes + wal_used_bytes) / total_bytes)*100) AS max_temp_used_perc,
+        #    ROUND(((temp_used_bytes + wal_used_bytes + perm_used_bytes) / total_bytes)*100) AS max_total_used_perc
+        #FROM  @{[ ($version =~ /clustrix-1\.0/)? 'system.vdev_space_stats' : 'system.device_space_stats' ]} order by ((temp_used_bytes + wal_used_bytes + perm_used_bytes) / total_bytes) desc limit 1;
+
+        # The number of nodes that are in quorum. since clustrix keeps 2 copies of each slice of a table, 2 nodes being down can result in 2 offline slices, therefore the
+        system_membership => " SELECT 'clustrix.system.membership.quorum' AS name, (SELECT COUNT(*) FROM system.membership WHERE status = 'quorum') UNION ALL SELECT 'clustrix.system.membership.total' AS name, (SELECT COUNT(*) FROM system.membership) ",
+        
+    );
+
     my $dbh = $self->get_dbh();
-    my $sth = $dbh->prepare( $sql );
+    my $sth = $dbh->prepare("SELECT VERSION()") || warn $@;
+    $sth->execute() || warn $@;
+    my($version) = $sth->fetchrow_array;
+    $sth->finish;
 
-    while (my $ref = $sth->fetchrow_hashref() ) {
-        print "$$ref{'name'} \t$$ref{'value'}\n";
-        Net::Statsd::gauge("$$ref{'name'}", $$ref{'value'});
+    if ($version =~ /clustrix-(1\.0|v2\.2)/) {
+        # Pending handle older versions
     }
 
-    # SELECT count(*) FROM system.sessions;
-    # SELECT count(*) FROM system.sessions WHERE trx_state = 'open' AND statement_state = 'executing';
-    # SELECT seconds_behind_master FROM system.mysql_slave_status WHERE Slave_Name = 'default'
+    foreach my $item (keys %queries) {
+        print "$item - $queries{$item}\n" if (DEBUG);
+        my $sql = $queries{$item};
+        my $sth = $dbh->prepare( $sql ) || warn $@;
+        $sth->execute || warn $@;
 
+        while (my $ref = $sth->fetchrow_hashref() ) {
+            if (defined($$ref{'name'}) && defined($$ref{'value'})) {
+                print "stats.$$ref{'name'} \t$$ref{'value'}\n" if (DEBUG);
+                Net::Statsd::gauge("stats.$$ref{'name'}", $$ref{'value'});
+            } else {
+                print Dumper($ref) if (DEBUG);
+            }
+        }
+        $sth->finish;
+    }
+    $dbh->disconnect();
 }
 
 1;
 }
 
 my $monitor = Clustrix::Monitoring->new();
-$monitor->run();
+while ( 1 ) {
+    $monitor->run();
+    sleep(2);
+}
 
-__END__
-
-=head1 NAME
-
-
+__END__;
