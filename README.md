@@ -10,6 +10,27 @@ Usage
 DEBUG=1 ./bin/clustrix-graphite
 ```
 
+Config
+===============================
+
+Change the following and create the config at /etc/clustrix/monitoring.conf.
+Alternatively run the following.
+
+```
+cat > /etc/clustrix/monitoring.conf <<-EOF
+statsd_hostname = 'metrics.example.com'
+dsn = "dbi:mysql:test:10.10.10.10:3306"
+user = "stats"
+pass = ""
+
+;<monitor key_name>
+;	SELECT X AS name, v AS value
+;</monitor>
+EOF
+```
+
+Will add custom queries that can be pushed to graphite or collectd
+
 Examples
 ================================
 ```
