@@ -47,6 +47,10 @@ sub _statsd_init {
 
     $Net::Statsd::HOST = $self->{config}{statsd_hostname};
     $Net::Statsd::PORT = $self->{config}{statsd_port};
+
+    if (DEBUG) {
+        print "$Net::Statsd::HOST:$Net::Statsd::PORT";
+    }
 }
 
 sub _config_init {
@@ -91,9 +95,10 @@ sub get_dbh {
     }
     my $dbh;
     $dbh = eval { DBI->connect($self->{config}{dsn}, $self->{config}{user}, $self->{config}{pass}, $defaults) };
-if ( $EVAL_ERROR ) {
-print "Error:  $EVAL_ERROR ";
-}
+
+    if ( $EVAL_ERROR ) {
+        print "Error:  $EVAL_ERROR ";
+    }
     return $dbh;
 }
 
