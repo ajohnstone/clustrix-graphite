@@ -1,0 +1,145 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings FATAL => 'all';
+
+{
+package Clustrix::Monitoring;
+
+use strict;
+use warnings FATAL => 'all';
+use Config::General;
+use English qw(-no_match_vars);
+use DBI;
+use Data::Dumper;
+use constant DEBUG => $ENV{DEBUG} || 0;
+
+
+eval { require DBI; };
+my $have_dbi = $EVAL_ERROR ? 0 : 1;
+eval { require Net::Statsd; };
+my $have_statsd = $EVAL_ERROR ? 0 : 1;
+
+sub new {
+    my($class, %args) = @_;
+    my $self = {};
+    bless $self, $class;
+    $self->_init( %args );
+    return $self;
+}
+
+sub _init {
+    my($self, %args) = @_;
+    $self->_config_init( $args{config_file} );
+    $self->_statsd_init();
+}
+
+sub _statsd_init {
+    my $self = shift;
+
+    if (!$have_statsd) {
+        die "Cannot connect to statsd because the Perl Net::Statsd module is not "
+         . "installed or not found.  Run 'perl -MNet::Statsd' to see the directories "
+         . "that Perl searches for DBI.  If DBI is not installed, try:\n"
+         . "  Other          cpan Net::Statsd\n"
+        ;
+    }
+
+    $Net::Statsd::HOST = $self->{config}{statsd_hostname};
+    $Net::Statsd::PORT = $self->{config}{statsd_port};
+}
+
+sub _config_init {
+    my($self, $config_file) = @_;
+
+    $config_file ||= '/etc/clustrix/monitoring.conf';
+    my $default_config = {
+        statsd_hostname => 'graphite.example.com',
+        statsd_port => 8125,
+        dsn => "dbi:mysql:test:localhost:3306",
+        user => "root",
+        pass => "",
+    };
+
+    $self->{config} = -f $config_file ? { Config::General->new(
+        -ConfigFile => $config_file,
+        -DefaultConfig => $default_config,
+        -MergeDuplicateOptions => 1 )->getall } : $default_config;
+}
+
+sub get_dbh {
+    my ( $self, $opts ) = @_;
+
+    $opts ||= {};
+    my $defaults = {
+        AutoCommit         => 0,
+        RaiseError         => 1,
+        PrintError         => 0,
+        ShowErrorStatement => 1,
+    };
+    @{$defaults}{ keys %$opts } = values %$opts;
+
+    if ( !$have_dbi ) {
+        die "Cannot connect to MySQL because the Perl DBI module is not "
+         . "installed or not found.  Run 'perl -MDBI' to see the directories "
+         . "that Perl searches for DBI.  If DBI is not installed, try:\n"
+         . "  Debian/Ubuntu  apt-get install libdbi-perl\n"
+         . "  RHEL/CentOS    yum install perl-DBI\n"
+         . "  OpenSolaris    pkg install pkg:/SUNWpmdbi\n"
+         . "  Other          cpan DBI\n"
+        ;
+    }
+    my $dbh;
+    $dbh = eval { DBI->connect($self->{config}{dsn}, $self->{config}{user}, $self->{config}{pass}, $defaults) };
+if ( $EVAL_ERROR ) {
+print "Error:  $EVAL_ERROR ";
+}
+    return $dbh;
+}
+
+sub run {
+    my($self) = @_;
+
+    my %stats = (
+        "cpu" => "clustrix.cpu.load_avg",
+        "bm_miss_rate" => "clustrix.stats.bm_miss_rate",
+        "qps_total" => "clustrix.qps",
+        "tps_total" => "clustrix.tps",
+        "avg_disk" => "clustrix.capacity.disks.avg_used_percent",
+        "max_disk" => "clustrix.capacity.disks.max_used_percent",
+        "min_disk" => "clustrix.capacity.disks.min_used_percent",
+        "rebalancer_queued" => "clustrix.rebalancer.jobs_queued",
+        "disk_read" => "clustrix.io.disks.bytes_read_per_sec",
+        "disk_write" => "clustrix.io.disks.bytes_written_per_sec",
+        "rebalancer_running" => "clustrix.rebalancer.jobs_queued"
+    );
+
+    my $sql = "SELECT value, name FROM clustrix_statd.statd_current
+            NATURAL JOIN clustrix_statd.statd_metadata
+            WHERE name IN ( @{[ join(',', map({ '\'' . $_ . '\'' } %stats) ) ]} )
+    ";
+    my $dbh = $self->get_dbh();
+    my $sth = $dbh->prepare( $sql );
+
+    while (my $ref = $sth->fetchrow_hashref() ) {
+        print "$$ref{'name'} \t$$ref{'value'}\n";
+        Net::Statsd::gauge("$$ref{'name'}", $$ref{'value'});
+    }
+
+    # SELECT count(*) FROM system.sessions;
+    # SELECT count(*) FROM system.sessions WHERE trx_state = 'open' AND statement_state = 'executing';
+    # SELECT seconds_behind_master FROM system.mysql_slave_status WHERE Slave_Name = 'default'
+
+}
+
+1;
+}
+
+my $monitor = Clustrix::Monitoring->new();
+$monitor->run();
+
+__END__
+
+=head1 NAME
+
+
