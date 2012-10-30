@@ -125,6 +125,31 @@ sub run {
     my %queries = (
         system_statsd_current     => " SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name IN ( @{[ join(',', map({ '\'' . $statsd_current{$_} . '\'' } keys %statsd_current) ) ]} )",
         system_statsd_current_com => " SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.stats.Com%'",
+        system_statsd_cache       => " SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.stats.%cache%'", # Including per node
+
+        system_statsd_by_node => " SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.cpu.load.node.%' UNION ALL
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.cpu.total_busy.node.%' UNION ALL
+
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.io.disk.bytes_read.node.%' UNION ALL
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.io.disk.bytes_written.node.%' UNION ALL
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.io.disk.reads_completed.node.%' UNION ALL
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.io.disk.read_latency.node.%' UNION ALL
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.io.disk.read_rate.node.%' UNION ALL
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.io.disk.throughput_read.node.%' UNION ALL
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.io.disk.throughput_write.node.%' UNION ALL
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.io.disk.writes_attempted.node.%' UNION ALL
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.io.disk.writes_completed.node.%' UNION ALL
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.io.disk.write_latency.node.%' UNION ALL
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.io.disk.write_rate.node.%' UNION ALL
+
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.stats.layer_reads.%' UNION ALL
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.stats.til_rows_read.%' UNION ALL
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.stats.qps_total.node.%' UNION ALL
+                                   SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.stats.tps_total.node.%'
+        ",
+        # -- What is a layer & a sublayer ?
+        # -- What is til, what is a layer ?
+
         system_sessions           => " SELECT 'clustrix.system.sessions' AS name, COUNT(*) AS value FROM system.sessions",
         system_sessions_running   => " SELECT 'clustrix.system.running.queries' AS name, count(*) AS value FROM system.sessions WHERE trx_state = 'open' AND statement_state = 'executing' ",
         system_slave_seconds_behind_master => " SELECT 'clustrix.slave.seconds_behind_master' AS name, seconds_behind_master AS value FROM system.mysql_slave_status WHERE Slave_Name = 'default' ",
