@@ -107,6 +107,8 @@ sub run {
 
     my %statsd_current = (
         "cpu" => "clustrix.cpu.load_avg",
+        "cpu_min" => "clustrix.cpu.load_min",
+        "cpu_max" => "clustrix.cpu.load_max",
         "bm_miss_rate" => "clustrix.stats.bm_miss_rate",
         "qps_total" => "clustrix.qps",
         "tps_total" => "clustrix.tps",
@@ -116,13 +118,15 @@ sub run {
         "rebalancer_queued" => "clustrix.rebalancer.jobs_queued",
         "disk_read" => "clustrix.io.disks.bytes_read_per_sec",
         "disk_write" => "clustrix.io.disks.bytes_written_per_sec",
-        "rebalancer_running" => "clustrix.rebalancer.jobs_queued"
+        "rebalancer_running" => "clustrix.rebalancer.jobs_queued",
+        "queries_not_using_indexes" => "clustrix.stats.queries_not_using_indexes",
     );
    
     my %queries = (
-        system_statsd_current   => " SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name IN ( @{[ join(',', map({ '\'' . $statsd_current{$_} . '\'' } keys %statsd_current) ) ]} )",
-        system_sessions         => " SELECT 'clustrix.system.sessions' AS name, COUNT(*) AS value FROM system.sessions",
-        system_sessions_running => " SELECT 'clustrix.system.running.queries' AS name, count(*) AS value FROM system.sessions WHERE trx_state = 'open' AND statement_state = 'executing' ",
+        system_statsd_current     => " SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name IN ( @{[ join(',', map({ '\'' . $statsd_current{$_} . '\'' } keys %statsd_current) ) ]} )",
+        system_statsd_current_com => " SELECT name, value FROM system.statd_current NATURAL JOIN system.statd_metadata WHERE name LIKE 'clustrix.stats.Com%'",
+        system_sessions           => " SELECT 'clustrix.system.sessions' AS name, COUNT(*) AS value FROM system.sessions",
+        system_sessions_running   => " SELECT 'clustrix.system.running.queries' AS name, count(*) AS value FROM system.sessions WHERE trx_state = 'open' AND statement_state = 'executing' ",
         system_slave_seconds_behind_master => " SELECT 'clustrix.slave.seconds_behind_master' AS name, seconds_behind_master AS value FROM system.mysql_slave_status WHERE Slave_Name = 'default' ",
 
         # This divides the number of connected sessions (including idle) by the maximum number of connections that the cluster will allow,
