@@ -238,7 +238,7 @@ sub run {
 my $monitor = Clustrix::Monitoring->new();
 while ( 1 ) {
     $monitor->run();
-    sleep(2);
+    sleep(5);
 }
 
 __END__;
