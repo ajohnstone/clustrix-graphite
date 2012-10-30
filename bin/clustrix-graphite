@@ -192,8 +192,8 @@ sub run {
 
         while (my $ref = $sth->fetchrow_hashref() ) {
             if (defined($$ref{'name'}) && defined($$ref{'value'})) {
-                print "stats.$$ref{'name'} \t$$ref{'value'}\n" if (DEBUG);
-                Net::Statsd::gauge("stats.$$ref{'name'}", $$ref{'value'});
+                print "$$ref{'name'} \t$$ref{'value'}\n" if (DEBUG);
+                Net::Statsd::gauge("$$ref{'name'}", $$ref{'value'});
             } else {
                 print Dumper($ref) if (DEBUG);
             }

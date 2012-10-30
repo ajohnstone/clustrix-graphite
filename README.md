@@ -18,7 +18,7 @@ Alternatively run the following.
 
 ```
 cat > /etc/clustrix/monitoring.conf <<-EOF
-statsd_hostname = 'metrics.example.com'
+statsd_hostname = metrics.example.com
 dsn = "dbi:mysql:test:10.10.10.10:3306"
 user = "stats"
 pass = ""
