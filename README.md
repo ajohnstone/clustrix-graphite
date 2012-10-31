@@ -54,5 +54,5 @@ GROUP BY name;
 
 Screen shots
 ================================
-[[docs/img/graphite.dashboard.png]]
-[[docs/img/graphite.metrics.png]]
+![Clustrix Graphite Dashboard](docs/img/graphite.dashboard.png)
+![Clustrix Graphite Metrics](docs/img/graphite.metrics.png)
