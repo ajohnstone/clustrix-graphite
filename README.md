@@ -54,5 +54,5 @@ GROUP BY name;
 
 Screen shots
 ================================
-![Clustrix Graphite Dashboard](/docs/img/graphite.dashboard.png)
-![Clustrix Graphite Metrics](/docs/img/graphite.metrics.png)
+![Clustrix Graphite Dashboard](https://raw.github.com/ajohnstone/clustrix-graphite/master/docs/img/graphite.dashboard.png)
+![Clustrix Graphite Metrics](https://raw.github.com/ajohnstone/clustrix-graphite/master/docs/img/graphite.metrics.png)
