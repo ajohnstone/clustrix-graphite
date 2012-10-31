@@ -51,3 +51,8 @@ SELECT name, value
 FROM system.cluster_session_stats
 GROUP BY name;
 ```
+
+Screen shots
+================================
+[[docs/img/graphite.dashboard.png]]
+[[docs/img/graphite.metrics.png]]
